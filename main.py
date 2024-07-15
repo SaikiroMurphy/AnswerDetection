@@ -21,7 +21,7 @@ ASSETS_PATH = OUTPUT_PATH / Path("./")
 def relative_to_assets(path: str) -> str:
     return str(ASSETS_PATH / Path(path))
 
-modelPath = relative_to_assets("best.pt")
+modelPath = relative_to_assets("Yolov8s.pt")
 
 model = YOLO(modelPath)
 
