@@ -16,7 +16,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 OUTPUT_PATH = Path(__file__).parent
-ASSETS_PATH = OUTPUT_PATH / Path(".venv/")
+ASSETS_PATH = OUTPUT_PATH / Path("./")
 
 def relative_to_assets(path: str) -> str:
     return str(ASSETS_PATH / Path(path))
