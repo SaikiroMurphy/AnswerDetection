@@ -1,14 +1,30 @@
 import os, sys
 import utils
-from ultralytics import YOLO
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File
 from PIL import Image
 from fastapi.responses import JSONResponse
 import uvicorn
 import multiprocessing
+from typing import List
+import time
+from loguru import logger
+from starlette.requests import Request
+import uuid
+from ultralytics import YOLO
 
 app = FastAPI()
+
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    response.headers["X-Request-ID"] = str(uuid.uuid4())
+    return response
+
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -26,24 +42,29 @@ modelPath = relative_to_assets("Yolov8s.pt")
 model = YOLO(modelPath)
 
 @app.post("/predict")
-async def predict(image: UploadFile = File(...)):
+async def predict(image: UploadFile):
     img = Image.open(image.file).convert("RGB")
 
+    start_infer_time = time.time()
     results = model.predict(img,
                             save=False,
-                            # show_conf=True,
-                            # show_labels=False,
-                            max_det = 800,
-                            # classes=[0],
-                            # conf=0.45,
+                            max_det=800,
+                            conf=0.6,
+                            iou=0.8,
                             )
 
-    # for result in results:
-    origin_cls = results[0].boxes.cls
-    origin_box = results[0].boxes.xyxyn
-    origin_conf = results[0].boxes.conf
+    logger.info(f"Infer time: {time.time() - start_infer_time:.03f}s")
 
-    box, cls, conf = utils.find_duplicates(origin_box, origin_cls, origin_conf)
+    # for result in results:
+    origin_cls = results[0].boxes.cls.numpy()
+    origin_box = results[0].boxes.xyxyn.numpy()
+    origin_conf = results[0].boxes.conf.numpy()
+
+    start_find_dup_time = time.time()
+    indices = utils.non_maximum_suppression(origin_box, origin_conf, iou_threshold=0.9)
+    logger.info(f"Find duplicate time: {time.time() - start_find_dup_time:.03f}s")
+
+    time_process = time.time()
 
     jsonDict = []
     ansDict = []
@@ -54,39 +75,39 @@ async def predict(image: UploadFile = File(...)):
     elimSBD = 0
     elimMDT = 0
 
-    for idxB, itemB in enumerate(cls):
+    for idx in indices:
 
-        if int(itemB) < 3:
+        if origin_cls[idx] < 3:
 
             bigDict = {
                 "box": [
-                    float(box[idxB][0]),
-                    float(box[idxB][1]),
-                    float(box[idxB][2]),
-                    float(box[idxB][3])],
+                    float(origin_box[idx][0]),
+                    float(origin_box[idx][1]),
+                    float(origin_box[idx][2]),
+                    float(origin_box[idx][3])],
                 "line": [],
             }
 
-            if itemB == 0:
+            if origin_cls[idx] == 0:
                 row1 = 10
                 col1 = 6
-                if conf[idxB] > elimSBD:
+                if origin_conf[idx] > elimSBD:
                     bigDict.update({"label": 'SBD'})
-                    elimSBD = conf[idxB]
-                    sortedList = utils.cellListH(box, cls, idxB, row1, col1)
+                    elimSBD = origin_conf[idx]
+                    sortedList = utils.cellListH(origin_box, origin_cls, idx, row1, col1)
                     bigDict = utils.mkDict(sortedList, bigDict, row1, col1)
 
                     jsonDict.append(bigDict)
 
                 else:
                     continue
-            elif itemB == 1:
+            elif origin_cls[idx] == 1:
                 row2 = 10
                 col2 = 3
-                if conf[idxB] > elimMDT:
+                if origin_conf[idx] > elimMDT:
                     bigDict.update({"label": 'MDT'})
-                    elimMDT = conf[idxB]
-                    sortedList = utils.cellListH(box, cls, idxB, row2, col2)
+                    elimMDT = origin_conf[idx]
+                    sortedList = utils.cellListH(origin_box, origin_cls, idx, row2, col2)
                     bigDict = utils.mkDict(sortedList, bigDict, row2, col2)
 
                     jsonDict.append(bigDict)
@@ -94,22 +115,26 @@ async def predict(image: UploadFile = File(...)):
                 else:
                     continue
 
-            elif itemB == 2:
+            elif origin_cls[idx] == 2:
                 row3 = 5
                 col3 = 4
                 bigDict.update({"label": 'DA'})
-                sortedList = utils.cellListV(box, cls, idxB, row3, col3)
+                sortedList = utils.cellListV(origin_box, origin_cls, idx, row3, col3)
                 bigDict = utils.mkDict(sortedList, bigDict, col3, row3)
 
                 ansDict.append(bigDict)
 
+    # logger.info(len(ansDict))
     listDA = utils.sortAns(ansDict)
     for i in listDA:
         jsonDict.append(i)
 
     sheetDict = {"sheet": jsonDict}
 
+    logger.info(f"Post processing time: {time.time() - time_process:.03f}s")
+
     return JSONResponse(content=sheetDict, status_code=200)
+
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
