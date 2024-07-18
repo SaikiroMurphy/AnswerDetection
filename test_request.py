@@ -1,12 +1,12 @@
 import os
 
-import loguru
+from loguru import logger
 import requests
 
 HOST = '127.0.0.1'
 PORT = '6969'
 
-image_path = r"C:\Users\ASUS\Downloads\ANH QUET BAI THIv6\ANH QUET BAI THI\ps3150u01.jpg"
+image_path = r"C:\Users\ASUS\Downloads\ANH QUET BAI THIv6\ANH QUET BAI THI"
 
 
 def htmlTableAPI(image_path):
@@ -21,4 +21,6 @@ def htmlTableAPI(image_path):
     return resp.json()
 
 
-loguru.logger.info(htmlTableAPI(image_path))
+for file in os.listdir(image_path):
+    if file.endswith(".jpg"):
+        logger.info(htmlTableAPI(os.path.join(image_path,file)))

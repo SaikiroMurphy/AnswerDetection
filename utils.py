@@ -1,5 +1,4 @@
 import loguru
-import torch
 from statistics import mean
 import numpy as np
 
@@ -55,76 +54,75 @@ def compute_iou(box, boxes):
     return iou
 
 
-def cellListH(box, cls, idxB, row, col):
+def cellListH(box, cls, idx, indices, row, col):
     list = []
-    colList = []
-    sortedList = [[0] * (row) for i in range(col)]
+    sortedList = [[0] * row for i in range(col)]
 
-    for idxL, itemL in enumerate(cls):
-        if int(itemL) > 2:
-            if float((box[idxL][0]) > float(box[idxB][0]) and
-                     float(box[idxL][1]) > float(box[idxB][1]) and
-                     float(box[idxL][2]) < float(box[idxB][2]) and
-                     float(box[idxL][3]) < float(box[idxB][3])):
-                list.append([itemL, box[idxL]])
+    # loguru.logger.info(len(indices))
+
+    for cnt in indices:
+        if int(cls[cnt]) > 2:
+            if (float(box[idx][0]) < mean([float(box[cnt][0]), float(box[cnt][2])]) < float(box[idx][2]) and
+                    float(box[idx][1]) < mean([float(box[cnt][1]), float(box[cnt][3])]) < float(box[idx][3])):
+                list.append([cls[cnt], box[cnt]])
 
     list.sort(key=lambda x: x[1][0])
 
-    # loguru.logger.info(list)
-    xComp = list[1]
+    # loguru.logger.info(len(list))
+    xComp = list[0]
 
     colN = 0
     rowN = 0
     for item in list:
         if (rowN < row and
-                xComp[1][2] >mean([float(item[1][0]), float(item[1][2])]) > xComp[1][0]) :
-                # and mean([float(item[1][0]), float(item[1][2])]) < xComp[1][2]):
+                xComp[1][0] < mean([float(item[1][0]), float(item[1][2])]) < xComp[1][2]):
+            # loguru.logger.debug(rowN)
             sortedList[colN][rowN] = item
             rowN += 1
 
         else:
             colN += 1
             rowN = 0
+            # loguru.logger.debug(colN)
             sortedList[colN][rowN] = item
             xComp = item
             rowN += 1
 
     for col in sortedList:
-        for cell in range(0, len(col)):
-            for i in range(cell + 1, len(col)):
-                if float("{:.3f}".format(col[cell][1][1])) > float("{:.3f}".format(col[i][1][1])):
-                    temp = col[i]
-                    col[i] = col[cell]
-                    col[cell] = temp
+        col.sort(key=lambda x: x[1][1])
+        # for cell in range(0, len(col)):
+        #     for i in range(cell + 1, len(col)):
+        #         if float("{:.3f}".format(col[cell][1][1])) > float("{:.3f}".format(col[i][1][1])):
+        #             temp = col[i]
+        #             col[i] = col[cell]
+        #             col[cell] = temp
 
     # loguru.logger.info(f"Sorted List: {sortedList}")
     return sortedList
 
 
-def cellListV(box, cls, idxB, row, col):
+def cellListV(box, cls, idx, indices, row, col):
     list = []
-    colList = []
-    sortedList = [[0] * (col) for i in range(row)]
+    sortedList = [[0] * col for i in range(row)]
 
-    for idxL, itemL in enumerate(cls):
-        if int(itemL) > 2:
-            if float((box[idxL][0]) > float(box[idxB][0]) and
-                     float(box[idxL][1]) > float(box[idxB][1]) and
-                     float(box[idxL][2]) < float(box[idxB][2]) and
-                     float(box[idxL][3]) < float(box[idxB][3])):
-                list.append([itemL, box[idxL]])
+    # loguru.logger.info(len(indices))
+
+    for cnt in indices:
+        if int(cls[cnt]) > 2:
+            if (float(box[idx][0]) < mean([float(box[cnt][0]), float(box[cnt][2])]) < float(box[idx][2]) and
+                    float(box[idx][1]) < mean([float(box[cnt][1]), float(box[cnt][3])]) < float(box[idx][3])):
+                list.append([cls[cnt], box[cnt]])
 
     list.sort(key=lambda x: x[1][1])
 
-    # loguru.logger.info(list)
-    xComp = list[1]
+    # loguru.logger.info(len(list))
+    xComp = list[0]
 
     colN = 0
     rowN = 0
     for item in list:
         if (colN < col and
-                mean([float(item[1][1]), float(item[1][3])]) > xComp[1][1] and
-                mean([float(item[1][1]), float(item[1][3])]) < xComp[1][3]):
+                xComp[1][1] < mean([float(item[1][1]), float(item[1][3])]) < xComp[1][3]):
             sortedList[rowN][colN] = item
             colN += 1
 
@@ -136,6 +134,8 @@ def cellListV(box, cls, idxB, row, col):
             colN += 1
 
     for row in sortedList:
+        row.sort(key=lambda x: x[1][0])
+
         for cell in range(0, len(row)):
             for i in range(cell + 1, len(row)):
                 if float("{:.3f}".format(row[cell][1][0])) > float("{:.3f}".format(row[i][1][0])):
@@ -145,6 +145,7 @@ def cellListV(box, cls, idxB, row, col):
 
     # loguru.logger.info(f"Sorted List: {sortedList}")
     return sortedList
+
 
 def mkDict(sortedList, bigDict, row, col):
     innerDict = []
@@ -179,6 +180,7 @@ def mkDict(sortedList, bigDict, row, col):
     bigDict["line"].extend(reshape.tolist())
     return bigDict
 
+
 def sortAns(ansDict):
     listDA = []
     for item in ansDict:
@@ -190,13 +192,12 @@ def sortAns(ansDict):
     # loguru.logger.info(f"Answer List: {listDA}")
 
     comp = listDA[0]
-    sortedList = [ [0] * (5) for i in range(2) ]
+    sortedList = [[0] * 5 for i in range(2)]
     colN = 0
     rowN = 0
 
     for item in listDA:
-        if (mean([float(item["box"][0]), float(item["box"][2])]) > comp["box"][0] and
-                mean([float(item["box"][0]), float(item["box"][2])]) < comp["box"][2]):
+        if comp["box"][0] < mean([float(item["box"][0]), float(item["box"][2])]) < comp["box"][2]:
             sortedList[colN][rowN] = item
             rowN += 1
 
