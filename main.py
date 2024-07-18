@@ -51,7 +51,7 @@ async def predict(image: UploadFile):
                             show_labels=False,
                             imgsz=1024,
                             max_det=800,
-                            conf=0.25,
+                            conf=0.4,
                             iou=0.7,
                             )
 
