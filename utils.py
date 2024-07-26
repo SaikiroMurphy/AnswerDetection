@@ -54,173 +54,124 @@ def compute_iou(box, boxes):
     return iou
 
 
-def cellListH(box, cls, idx, indices, row, col):
-    list = []
-    sortedList = [[0] * row for i in range(col)]
+def cellListH(box, cls, idx, indices):
+    filtered_list = [[cls[cnt], box[cnt]]
+        for cnt in indices
+        if int(cls[cnt]) > 2 and
+        float(box[idx][0]) < mean([float(box[cnt][0]), float(box[cnt][2])]) < float(box[idx][2]) and
+        float(box[idx][1]) < mean([float(box[cnt][1]), float(box[cnt][3])]) < float(box[idx][3])
+    ]
 
-    # loguru.logger.info(len(indices))
+    filtered_list.sort(key=lambda x: x[1][0])
+    # loguru.logger.debug(len(filtered_list))
 
-    for cnt in indices:
-        if int(cls[cnt]) > 2:
-            if (float(box[idx][0]) < mean([float(box[cnt][0]), float(box[cnt][2])]) < float(box[idx][2]) and
-                    float(box[idx][1]) < mean([float(box[cnt][1]), float(box[cnt][3])]) < float(box[idx][3])):
-                list.append([cls[cnt], box[cnt]])
+    sortedList = []
+    xComp = filtered_list[0]
+    colList = []
 
-    list.sort(key=lambda x: x[1][0])
-
-    # loguru.logger.info(len(list))
-    xComp = list[0]
-
-    colN = 0
-    rowN = 0
-    for item in list:
-        if (rowN < row and
-                xComp[1][0] < mean([float(item[1][0]), float(item[1][2])]) < xComp[1][2]):
-            # loguru.logger.debug(rowN)
-            sortedList[colN][rowN] = item
-            rowN += 1
-
+    for item in filtered_list:
+        item_mean_x = mean([float(item[1][0]), float(item[1][2])])
+        if xComp[1][0] < item_mean_x < xComp[1][2]:
+            colList.append(item)
         else:
-            colN += 1
-            rowN = 0
-            # loguru.logger.debug(colN)
-            sortedList[colN][rowN] = item
+            # loguru.logger.debug(sortedList)
+            sortedList.append(colList.copy())
+            # loguru.logger.debug(sortedList)
+
+            colList.clear()
+            colList.append(item)
             xComp = item
-            rowN += 1
 
-    for col in sortedList:
-        col.sort(key=lambda x: x[1][1])
-        # for cell in range(0, len(col)):
-        #     for i in range(cell + 1, len(col)):
-        #         if float("{:.3f}".format(col[cell][1][1])) > float("{:.3f}".format(col[i][1][1])):
-        #             temp = col[i]
-        #             col[i] = col[cell]
-        #             col[cell] = temp
+    sortedList.append(colList.copy())
+    # loguru.logger.debug(len(sortedList))
 
-    # loguru.logger.info(f"Sorted List: {sortedList}")
+    for c in sortedList:
+        c.sort(key=lambda x: x[1][1])
+    # loguru.logger.debug(sortedList)
+
     return sortedList
 
 
-def cellListV(box, cls, idx, indices, row, col):
-    list = []
-    sortedList = [[0] * col for i in range(row)]
+def cellListV(box, cls, idx, indices):
+    filtered_list = [[cls[cnt], box[cnt]]
+        for cnt in indices
+        if int(cls[cnt]) > 2 and
+        float(box[idx][0]) < mean([float(box[cnt][0]), float(box[cnt][2])]) < float(box[idx][2]) and
+        float(box[idx][1]) < mean([float(box[cnt][1]), float(box[cnt][3])]) < float(box[idx][3])
+    ]
 
-    # loguru.logger.info(len(indices))
+    filtered_list.sort(key=lambda x: x[1][1])
 
-    for cnt in indices:
-        if int(cls[cnt]) > 2:
-            if (float(box[idx][0]) < mean([float(box[cnt][0]), float(box[cnt][2])]) < float(box[idx][2]) and
-                    float(box[idx][1]) < mean([float(box[cnt][1]), float(box[cnt][3])]) < float(box[idx][3])):
-                list.append([cls[cnt], box[cnt]])
+    sortedList = []
+    xComp = filtered_list[0]
+    rowList = []
 
-    list.sort(key=lambda x: x[1][1])
-
-    # loguru.logger.info(len(list))
-    xComp = list[0]
-
-    colN = 0
-    rowN = 0
-    for item in list:
-        if (colN < col and
-                xComp[1][1] < mean([float(item[1][1]), float(item[1][3])]) < xComp[1][3]):
-            sortedList[rowN][colN] = item
-            colN += 1
-
+    for item in filtered_list:
+        item_mean_y = mean([float(item[1][1]), float(item[1][3])])
+        if xComp[1][1] < item_mean_y < xComp[1][3]:
+            rowList.append(item)
         else:
-            rowN += 1
-            colN = 0
-            sortedList[rowN][colN] = item
+            sortedList.append(rowList.copy())
+            rowList.clear()
+            rowList.append(item)
             xComp = item
-            colN += 1
 
-    for row in sortedList:
-        row.sort(key=lambda x: x[1][0])
+    sortedList.append(rowList.copy())
+    # loguru.logger.debug(sortedList)
 
-        for cell in range(0, len(row)):
-            for i in range(cell + 1, len(row)):
-                if float("{:.3f}".format(row[cell][1][0])) > float("{:.3f}".format(row[i][1][0])):
-                    temp = row[i]
-                    row[i] = row[cell]
-                    row[cell] = temp
+    for r in sortedList:
+        # loguru.logger.info(r)
+        r.sort(key=lambda x: x[1][0])
 
-    # loguru.logger.info(f"Sorted List: {sortedList}")
     return sortedList
 
 
-def mkDict(sortedList, bigDict, row, col):
-    innerDict = []
-    for coll in sortedList:
-        for cell in coll:
-            if int(cell[0]) == 3:
-                itemD = {
-                    "box": [
-                        float(cell[1][0]),
-                        float(cell[1][1]),
-                        float(cell[1][2]),
-                        float(cell[1][3])
-                    ],
-                    "label": "o",
-                },
-
-            elif int(cell[0]) == 4:
-                itemD = {
-                    "box": [
-                        float(cell[1][0]),
-                        float(cell[1][1]),
-                        float(cell[1][2]),
-                        float(cell[1][3])],
-                    "label": "x",
-                },
-
-            innerDict.extend(itemD)
+def mkDict(sortedList, bigDict, col):
+    innerDict = [
+        {
+            "box": [
+                float(cell[1][0]),
+                float(cell[1][1]),
+                float(cell[1][2]),
+                float(cell[1][3])
+            ],
+            "label": "o" if int(cell[0]) == 3 else "x"
+        }
+        for coll in sortedList
+        for cell in coll
+        if int(cell[0]) in {3, 4}
+    ]
 
     arr = np.array(innerDict)
-    reshape = arr.reshape(col, row)
+    # loguru.logger.info(len(arr))
+    reshape = arr.reshape(round(len(arr)/col), col)
 
     bigDict["line"].extend(reshape.tolist())
     return bigDict
 
 
 def sortAns(ansDict):
-    listDA = []
-    for item in ansDict:
-        if item["label"] == "DA":
-            listDA.append(item)
-
-    listDA.sort(key=lambda x: x["box"][0])
-
-    # loguru.logger.info(f"Answer List: {listDA}")
+    # Filter out items with label "DA" and sort by the first value in the "box" list
+    listDA = sorted((item for item in ansDict if item["label"] == "DA"), key=lambda x: x["box"][0])
 
     comp = listDA[0]
-    sortedList = [[0] * 5 for i in range(2)]
+    sortedList = [[]]
     colN = 0
-    rowN = 0
 
     for item in listDA:
-        if comp["box"][0] < mean([float(item["box"][0]), float(item["box"][2])]) < comp["box"][2]:
-            sortedList[colN][rowN] = item
-            rowN += 1
-
+        item_mean_x = mean([float(item["box"][0]), float(item["box"][2])])
+        if comp["box"][0] < item_mean_x < comp["box"][2]:
+            sortedList[colN].append(item)
         else:
             colN += 1
-            rowN = 0
-            sortedList[colN][rowN] = item
+            sortedList.append([item])
             comp = item
-            rowN += 1
 
-    # loguru.logger.info(sortedList)
-
+    # Sort each row by the second value in the "box" list
     for row in sortedList:
-        for cell in range(0, len(row)):
-            for i in range(cell + 1, len(row)):
-                if row[cell]["box"][1] > row[i]["box"][1]:
-                    temp = row[i]
-                    row[i] = row[cell]
-                    row[cell] = temp
+        row.sort(key=lambda x: x["box"][1])
 
-    listDA.clear()
-    for item in sortedList:
-        for i in item:
-            listDA.append(i)
+    # Flatten the sorted list
+    listDA = [item for sublist in sortedList for item in sublist]
 
     return listDA

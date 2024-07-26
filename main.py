@@ -15,7 +15,7 @@ from ultralytics import YOLO
 
 app = FastAPI()
 
-
+#
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     start_time = time.time()
@@ -37,7 +37,7 @@ ASSETS_PATH = OUTPUT_PATH / Path("./")
 def relative_to_assets(path: str) -> str:
     return str(ASSETS_PATH / Path(path))
 
-modelPath = relative_to_assets("Yolov8s.pt")
+modelPath = relative_to_assets("Yolov8s-p2.pt")
 
 model = YOLO(modelPath)
 
@@ -49,10 +49,10 @@ async def predict(image: UploadFile):
     results = model.predict(img,
                             save=True,
                             show_labels=False,
-                            imgsz=1024,
+                            imgsz=640,
                             max_det=800,
-                            conf=0.4,
-                            iou=0.7,
+                            conf=0.25,
+                            iou=0.4,
                             )
 
     logger.info(f"Infer time: {time.time() - start_infer_time:.03f}s")
@@ -80,52 +80,44 @@ async def predict(image: UploadFile):
     elimMDT = 0
 
     for idx in indices:
+        origin_cls_val = origin_cls[idx]
 
-        if origin_cls[idx] < 3:
-
+        if origin_cls_val < 3:
+            origin_box_val = origin_box[idx]
             bigDict = {
                 "box": [
-                    float(origin_box[idx][0]),
-                    float(origin_box[idx][1]),
-                    float(origin_box[idx][2]),
-                    float(origin_box[idx][3])],
-                "line": [],
+                    float(origin_box_val[0]),
+                    float(origin_box_val[1]),
+                    float(origin_box_val[2]),
+                    float(origin_box_val[3])
+                ],
+                "line": []
             }
 
-            if origin_cls[idx] == 0:
+            if origin_cls_val == 0:
                 row1 = 10
-                col1 = 6
                 if origin_conf[idx] > elimSBD:
-                    bigDict.update({"label": 'SBD'})
+                    bigDict["label"] = 'SBD'
                     elimSBD = origin_conf[idx]
-                    sortedList = utils.cellListH(origin_box, origin_cls, idx, indices, row1, col1)
-                    bigDict = utils.mkDict(sortedList, bigDict, row1, col1)
-
+                    sortedList = utils.cellListH(origin_box, origin_cls, idx, indices)
+                    bigDict = utils.mkDict(sortedList, bigDict, row1)
                     jsonDict.append(bigDict)
 
-                else:
-                    continue
-            elif origin_cls[idx] == 1:
+            elif origin_cls_val == 1:
                 row2 = 10
-                col2 = 3
                 if origin_conf[idx] > elimMDT:
-                    bigDict.update({"label": 'MDT'})
+                    bigDict["label"] = 'MDT'
                     elimMDT = origin_conf[idx]
-                    sortedList = utils.cellListH(origin_box, origin_cls, idx, indices, row2, col2)
-                    bigDict = utils.mkDict(sortedList, bigDict, row2, col2)
-
+                    sortedList = utils.cellListH(origin_box, origin_cls, idx, indices)
+                    bigDict = utils.mkDict(sortedList, bigDict, row2)
                     jsonDict.append(bigDict)
 
-                else:
-                    continue
-
-            elif origin_cls[idx] == 2:
-                row3 = 5
+            elif origin_cls_val == 2:
                 col3 = 4
-                bigDict.update({"label": 'DA'})
-                sortedList = utils.cellListV(origin_box, origin_cls, idx, indices, row3, col3)
-                bigDict = utils.mkDict(sortedList, bigDict, col3, row3)
-
+                bigDict["label"] = 'DA'
+                sortedList = utils.cellListV(origin_box, origin_cls, idx, indices)
+                # logger.debug(sortedList)
+                bigDict = utils.mkDict(sortedList, bigDict, col3)
                 ansDict.append(bigDict)
 
     # logger.info(len(ansDict))
@@ -142,4 +134,4 @@ async def predict(image: UploadFile):
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    uvicorn.run("main:app", host="127.0.0.1", port=6969, reload=False)
+    uvicorn.run(app, host="127.0.0.1", port=6969, reload=False)
