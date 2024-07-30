@@ -155,17 +155,20 @@ def sortAns(ansDict):
     listDA = sorted((item for item in ansDict if item["label"] == "DA"), key=lambda x: x["box"][0])
 
     comp = listDA[0]
-    sortedList = [[]]
+    sortedList = []
+    subList = []
     colN = 0
 
     for item in listDA:
         item_mean_x = mean([float(item["box"][0]), float(item["box"][2])])
         if comp["box"][0] < item_mean_x < comp["box"][2]:
-            sortedList[colN].append(item)
+            subList.append(item)
         else:
-            colN += 1
-            sortedList.append([item])
-            comp = item
+            sortedList.append(subList.copy())
+            subList.clear()
+            subList.append(item)
+
+    sortedList.append(subList.copy())
 
     # Sort each row by the second value in the "box" list
     for row in sortedList:
