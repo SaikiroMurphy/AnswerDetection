@@ -1,4 +1,4 @@
-
+import self
 
 
 class ScoreParser():

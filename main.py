@@ -128,6 +128,7 @@ async def predict(image: UploadFile):
     sheetDict = {"sheet": jsonDict}
 
     logger.info(f"Post processing time: {time.time() - time_process:.03f}s")
+    logger.info(f"Total processing time: {time.time() - start_infer_time:.03f}s")
 
     return JSONResponse(content=sheetDict, status_code=200)
 
