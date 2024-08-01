@@ -1,8 +1,8 @@
-import self
+# import self
 
 
 class ScoreParser():
-    def __init__():
+    def __init__(self):
         self.num_digit_sbd = 6
 
 

@@ -12,6 +12,8 @@ from loguru import logger
 from starlette.requests import Request
 import uuid
 from ultralytics import YOLO
+from statistics import mean
+import numpy as np
 
 app = FastAPI()
 
@@ -99,7 +101,15 @@ async def predict(image: UploadFile):
                 if origin_conf[idx] > elimSBD:
                     bigDict["label"] = 'SBD'
                     elimSBD = origin_conf[idx]
-                    sortedList = utils.cellListH(origin_box, origin_cls, idx, indices)
+                    filtered_list = [[origin_cls[cnt], origin_box[cnt]]
+                                     for cnt in indices
+                                     if int(origin_cls[cnt]) > 2 and
+                                     float(origin_box[idx][0]) < mean([float(origin_box[cnt][0]), float(origin_box[cnt][2])]) < float(
+                            origin_box[idx][2]) and
+                                     float(origin_box[idx][1]) < mean([float(origin_box[cnt][1]), float(origin_box[cnt][3])]) < float(
+                            origin_box[idx][3])
+                                     ]
+                    sortedList = utils.cellListH(filtered_list)
                     bigDict = utils.mkDict(sortedList, bigDict, row1)
                     jsonDict.append(bigDict)
 
@@ -108,20 +118,51 @@ async def predict(image: UploadFile):
                 if origin_conf[idx] > elimMDT:
                     bigDict["label"] = 'MDT'
                     elimMDT = origin_conf[idx]
-                    sortedList = utils.cellListH(origin_box, origin_cls, idx, indices)
+                    filtered_list = [[origin_cls[cnt], origin_box[cnt]]
+                                     for cnt in indices
+                                     if int(origin_cls[cnt]) > 2 and
+                                     float(origin_box[idx][0]) < mean([float(origin_box[cnt][0]), float(origin_box[cnt][2])]) < float(
+                            origin_box[idx][2]) and
+                                     float(origin_box[idx][1]) < mean([float(origin_box[cnt][1]), float(origin_box[cnt][3])]) < float(
+                            origin_box[idx][3])
+                                     ]
+                    sortedList = utils.cellListH(filtered_list)
                     bigDict = utils.mkDict(sortedList, bigDict, row2)
                     jsonDict.append(bigDict)
 
             elif origin_cls_val == 2:
-                col3 = 4
                 bigDict["label"] = 'DA'
-                sortedList = utils.cellListV(origin_box, origin_cls, idx, indices)
-                # logger.debug(sortedList)
+                filtered_list = [[origin_cls[cnt], origin_box[cnt]]
+                                 for cnt in indices
+                                 if int(origin_cls[cnt]) > 2 and
+                                 float(origin_box[idx][0]) < mean(
+                        [float(origin_box[cnt][0]), float(origin_box[cnt][2])]) < float(
+                        origin_box[idx][2]) and
+                                 float(origin_box[idx][1]) < mean(
+                        [float(origin_box[cnt][1]), float(origin_box[cnt][3])]) < float(
+                        origin_box[idx][3])
+                                 ]
+                logger.debug(len(filtered_list))
+                if len(filtered_list) == 43:
+                    col3 = 11
+                    sortedList = utils.cellListH(filtered_list)
+                    # logger.debug(sortedList)
+                    sortedList[-1].insert(0, [4, np.array([0, 0, 0, 0], dtype='float32')])
+
+                elif len(filtered_list) == 8:
+                    col3 = 2
+                    sortedList = utils.cellListV(filtered_list)
+                    # logger.debug(sortedList)
+
+                else:
+                    col3 = 4
+                    sortedList = utils.cellListV(filtered_list)
                 bigDict = utils.mkDict(sortedList, bigDict, col3)
                 ansDict.append(bigDict)
 
     # logger.info(len(ansDict))
     listDA = utils.sortAns(ansDict)
+    # logger.debug(listDA)
     for i in listDA:
         jsonDict.append(i)
 
@@ -135,4 +176,4 @@ async def predict(image: UploadFile):
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    uvicorn.run(app, host="127.0.0.1", port=6969, reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=6969, reload=False)

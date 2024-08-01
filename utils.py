@@ -54,13 +54,7 @@ def compute_iou(box, boxes):
     return iou
 
 
-def cellListH(box, cls, idx, indices):
-    filtered_list = [[cls[cnt], box[cnt]]
-        for cnt in indices
-        if int(cls[cnt]) > 2 and
-        float(box[idx][0]) < mean([float(box[cnt][0]), float(box[cnt][2])]) < float(box[idx][2]) and
-        float(box[idx][1]) < mean([float(box[cnt][1]), float(box[cnt][3])]) < float(box[idx][3])
-    ]
+def cellListH(filtered_list):
 
     filtered_list.sort(key=lambda x: x[1][0])
     # loguru.logger.debug(len(filtered_list))
@@ -92,13 +86,7 @@ def cellListH(box, cls, idx, indices):
     return sortedList
 
 
-def cellListV(box, cls, idx, indices):
-    filtered_list = [[cls[cnt], box[cnt]]
-        for cnt in indices
-        if int(cls[cnt]) > 2 and
-        float(box[idx][0]) < mean([float(box[cnt][0]), float(box[cnt][2])]) < float(box[idx][2]) and
-        float(box[idx][1]) < mean([float(box[cnt][1]), float(box[cnt][3])]) < float(box[idx][3])
-    ]
+def cellListV(filtered_list):
 
     filtered_list.sort(key=lambda x: x[1][1])
 
@@ -167,12 +155,16 @@ def sortAns(ansDict):
             sortedList.append(subList.copy())
             subList.clear()
             subList.append(item)
+            comp = item
 
     sortedList.append(subList.copy())
 
     # Sort each row by the second value in the "box" list
     for row in sortedList:
+        loguru.logger.debug(row)
         row.sort(key=lambda x: x["box"][1])
+        loguru.logger.debug(row)
+
 
     # Flatten the sorted list
     listDA = [item for sublist in sortedList for item in sublist]
