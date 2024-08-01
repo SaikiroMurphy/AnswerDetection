@@ -161,9 +161,9 @@ def sortAns(ansDict):
 
     # Sort each row by the second value in the "box" list
     for row in sortedList:
-        loguru.logger.debug(row)
+        # loguru.logger.debug(row)
         row.sort(key=lambda x: x["box"][1])
-        loguru.logger.debug(row)
+        # loguru.logger.debug(row)
 
 
     # Flatten the sorted list

@@ -39,6 +39,13 @@ ASSETS_PATH = OUTPUT_PATH / Path("./")
 def relative_to_assets(path: str) -> str:
     return str(ASSETS_PATH / Path(path))
 
+def filter_list(origin_cls, origin_box, indices, idx):
+    return [[origin_cls[cnt], origin_box[cnt]]
+            for cnt in indices
+            if int(origin_cls[cnt]) > 2 and
+            float(origin_box[idx][0]) < mean([float(origin_box[cnt][0]), float(origin_box[cnt][2])]) < float(origin_box[idx][2]) and
+            float(origin_box[idx][1]) < mean([float(origin_box[cnt][1]), float(origin_box[cnt][3])]) < float(origin_box[idx][3])]
+
 modelPath = relative_to_assets("Yolov8s-p2.pt")
 
 model = YOLO(modelPath)
@@ -101,14 +108,7 @@ async def predict(image: UploadFile):
                 if origin_conf[idx] > elimSBD:
                     bigDict["label"] = 'SBD'
                     elimSBD = origin_conf[idx]
-                    filtered_list = [[origin_cls[cnt], origin_box[cnt]]
-                                     for cnt in indices
-                                     if int(origin_cls[cnt]) > 2 and
-                                     float(origin_box[idx][0]) < mean([float(origin_box[cnt][0]), float(origin_box[cnt][2])]) < float(
-                            origin_box[idx][2]) and
-                                     float(origin_box[idx][1]) < mean([float(origin_box[cnt][1]), float(origin_box[cnt][3])]) < float(
-                            origin_box[idx][3])
-                                     ]
+                    filtered_list = filter_list(origin_cls, origin_box, indices, idx)
                     sortedList = utils.cellListH(filtered_list)
                     bigDict = utils.mkDict(sortedList, bigDict, row1)
                     jsonDict.append(bigDict)
@@ -118,31 +118,15 @@ async def predict(image: UploadFile):
                 if origin_conf[idx] > elimMDT:
                     bigDict["label"] = 'MDT'
                     elimMDT = origin_conf[idx]
-                    filtered_list = [[origin_cls[cnt], origin_box[cnt]]
-                                     for cnt in indices
-                                     if int(origin_cls[cnt]) > 2 and
-                                     float(origin_box[idx][0]) < mean([float(origin_box[cnt][0]), float(origin_box[cnt][2])]) < float(
-                            origin_box[idx][2]) and
-                                     float(origin_box[idx][1]) < mean([float(origin_box[cnt][1]), float(origin_box[cnt][3])]) < float(
-                            origin_box[idx][3])
-                                     ]
+                    filtered_list = filter_list(origin_cls, origin_box, indices, idx)
                     sortedList = utils.cellListH(filtered_list)
                     bigDict = utils.mkDict(sortedList, bigDict, row2)
                     jsonDict.append(bigDict)
 
             elif origin_cls_val == 2:
                 bigDict["label"] = 'DA'
-                filtered_list = [[origin_cls[cnt], origin_box[cnt]]
-                                 for cnt in indices
-                                 if int(origin_cls[cnt]) > 2 and
-                                 float(origin_box[idx][0]) < mean(
-                        [float(origin_box[cnt][0]), float(origin_box[cnt][2])]) < float(
-                        origin_box[idx][2]) and
-                                 float(origin_box[idx][1]) < mean(
-                        [float(origin_box[cnt][1]), float(origin_box[cnt][3])]) < float(
-                        origin_box[idx][3])
-                                 ]
-                logger.debug(len(filtered_list))
+                filtered_list = filter_list(origin_cls, origin_box, indices, idx)
+                # logger.debug(len(filtered_list))
                 if len(filtered_list) == 43:
                     col3 = 11
                     sortedList = utils.cellListH(filtered_list)
@@ -176,4 +160,4 @@ async def predict(image: UploadFile):
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    uvicorn.run("main:app", host="0.0.0.0", port=6969, reload=False)
+    uvicorn.run("main:app", host="127.0.0.1", port=6969, reload=False)
