@@ -2,7 +2,7 @@
 
 
 class ScoreParser():
-    def __init__(self):
+    def __init__(self, cls, box, ):
         self.num_digit_sbd = 6
 
 

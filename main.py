@@ -1,12 +1,11 @@
 import os, sys
 import utils
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from PIL import Image
 from fastapi.responses import JSONResponse
 import uvicorn
 import multiprocessing
-from typing import List
 import time
 from loguru import logger
 from starlette.requests import Request
@@ -17,7 +16,6 @@ import numpy as np
 
 app = FastAPI()
 
-#
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     start_time = time.time()
@@ -39,19 +37,19 @@ ASSETS_PATH = OUTPUT_PATH / Path("./")
 def relative_to_assets(path: str) -> str:
     return str(ASSETS_PATH / Path(path))
 
-def filter_list(origin_cls, origin_box, indices, idx):
-    return [[origin_cls[cnt], origin_box[cnt]]
-            for cnt in indices
+def filter_list(origin_cls, origin_box, idx):
+    return [[origin_cls[cnt], box]
+            for cnt, box in enumerate(origin_box)
             if int(origin_cls[cnt]) > 2 and
-            float(origin_box[idx][0]) < mean([float(origin_box[cnt][0]), float(origin_box[cnt][2])]) < float(origin_box[idx][2]) and
-            float(origin_box[idx][1]) < mean([float(origin_box[cnt][1]), float(origin_box[cnt][3])]) < float(origin_box[idx][3])]
+            float(origin_box[idx][0]) < mean([float(box[0]), float(box[2])]) < float(origin_box[idx][2]) and
+            float(origin_box[idx][1]) < mean([float(box[1]), float(box[3])]) < float(origin_box[idx][3])]
 
 modelPath = relative_to_assets("Yolov8s-p2.pt")
 
 model = YOLO(modelPath)
 
 @app.post("/predict")
-async def predict(image: UploadFile):
+async def predict(image: UploadFile = File(...), rows: bool = Form(...)):
     img = Image.open(image.file).convert("RGB")
 
     start_infer_time = time.time()
@@ -62,6 +60,7 @@ async def predict(image: UploadFile):
                             max_det=800,
                             conf=0.25,
                             iou=0.4,
+                            agnostic_nms=True,
                             )
 
     logger.info(f"Infer time: {time.time() - start_infer_time:.03f}s")
@@ -69,13 +68,6 @@ async def predict(image: UploadFile):
     origin_cls = results[0].boxes.cls.numpy()
     origin_box = results[0].boxes.xyxyn.numpy()
     origin_conf = results[0].boxes.conf
-
-    start_find_dup_time = time.time()
-
-
-    indices = utils.non_maximum_suppression(origin_box, origin_conf, iou_threshold=0.98)
-    # logger.info(len(indices))
-    logger.info(f"Find duplicate time: {time.time() - start_find_dup_time:.03f}s")
 
     time_process = time.time()
 
@@ -88,8 +80,8 @@ async def predict(image: UploadFile):
     elimSBD = 0
     elimMDT = 0
 
-    for idx in indices:
-        origin_cls_val = origin_cls[idx]
+    for idx, cls in enumerate(origin_cls):
+        origin_cls_val = cls
 
         if origin_cls_val < 3:
             origin_box_val = origin_box[idx]
@@ -108,7 +100,7 @@ async def predict(image: UploadFile):
                 if origin_conf[idx] > elimSBD:
                     bigDict["label"] = 'SBD'
                     elimSBD = origin_conf[idx]
-                    filtered_list = filter_list(origin_cls, origin_box, indices, idx)
+                    filtered_list = filter_list(origin_cls, origin_box, idx)
                     sortedList = utils.cellListH(filtered_list)
                     bigDict = utils.mkDict(sortedList, bigDict, row1)
                     jsonDict.append(bigDict)
@@ -118,14 +110,14 @@ async def predict(image: UploadFile):
                 if origin_conf[idx] > elimMDT:
                     bigDict["label"] = 'MDT'
                     elimMDT = origin_conf[idx]
-                    filtered_list = filter_list(origin_cls, origin_box, indices, idx)
+                    filtered_list = filter_list(origin_cls, origin_box, idx)
                     sortedList = utils.cellListH(filtered_list)
                     bigDict = utils.mkDict(sortedList, bigDict, row2)
                     jsonDict.append(bigDict)
 
             elif origin_cls_val == 2:
                 bigDict["label"] = 'DA'
-                filtered_list = filter_list(origin_cls, origin_box, indices, idx)
+                filtered_list = filter_list(origin_cls, origin_box, idx)
                 # logger.debug(len(filtered_list))
                 if len(filtered_list) == 43:
                     col3 = 11
@@ -145,7 +137,14 @@ async def predict(image: UploadFile):
                 ansDict.append(bigDict)
 
     # logger.info(len(ansDict))
-    listDA = utils.sortAns(ansDict)
+
+    listDA = []
+
+    if rows:
+        listDA = utils.sortAns(ansDict)
+    else:
+        listDA = utils.sortAnsD(ansDict)
+
     # logger.debug(listDA)
     for i in listDA:
         jsonDict.append(i)
@@ -160,4 +159,4 @@ async def predict(image: UploadFile):
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    uvicorn.run("main:app", host="127.0.0.1", port=6969, reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=6969, reload=False)
