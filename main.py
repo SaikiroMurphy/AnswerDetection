@@ -1,8 +1,10 @@
 import os, sys
+
+import cv2
+
 import utils
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form
-from PIL import Image
 from fastapi.responses import JSONResponse
 import uvicorn
 import multiprocessing
@@ -10,11 +12,13 @@ import time
 from loguru import logger
 from starlette.requests import Request
 import uuid
-from ultralytics import YOLO
 from statistics import mean
 import numpy as np
+from YOLOv8_onnx import YOLOv8
+
 
 app = FastAPI()
+
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
@@ -34,40 +38,57 @@ def resource_path(relative_path):
 OUTPUT_PATH = Path(__file__).parent
 ASSETS_PATH = OUTPUT_PATH / Path("./")
 
+
 def relative_to_assets(path: str) -> str:
     return str(ASSETS_PATH / Path(path))
+
 
 def filter_list(origin_cls, origin_box, idx):
     return [[origin_cls[cnt], box]
             for cnt, box in enumerate(origin_box)
-            if int(origin_cls[cnt]) > 2 and
+            if origin_cls[cnt] >= 3 and
             float(origin_box[idx][0]) < mean([float(box[0]), float(box[2])]) < float(origin_box[idx][2]) and
             float(origin_box[idx][1]) < mean([float(box[1]), float(box[3])]) < float(origin_box[idx][3])]
 
-modelPath = relative_to_assets("Yolov8s-p2.pt")
 
-model = YOLO(modelPath)
+modelPath = relative_to_assets("Yolov8s-p2.onnx")
+
+# model = YOLO(modelPath, task='detect')
+
 
 @app.post("/predict")
 async def predict(image: UploadFile = File(...), rows: bool = Form(...)):
-    img = Image.open(image.file).convert("RGB")
+    # Read the uploaded file
+    contents = await image.read()
+
+    # Convert the file contents to a numpy array
+    np_arr = np.frombuffer(contents, np.uint8)
 
     start_infer_time = time.time()
-    results = model.predict(img,
-                            save=True,
-                            show_labels=False,
-                            imgsz=640,
-                            max_det=800,
-                            conf=0.25,
-                            iou=0.4,
-                            agnostic_nms=True,
-                            )
+    # results = model.predict(cv2.imdecode(np_arr, cv2.IMREAD_COLOR),
+    #                         save=True,
+    #                         show_labels=False,
+    #                         imgsz=640,
+    #                         max_det=800,
+    #                         conf=0.25,
+    #                         iou=0.4,
+    #                         agnostic_nms=True,
+    #                         )
 
-    logger.info(f"Infer time: {time.time() - start_infer_time:.03f}s")
+    # exit(0)
 
-    origin_cls = results[0].boxes.cls.numpy()
-    origin_box = results[0].boxes.xyxyn.numpy()
-    origin_conf = results[0].boxes.conf
+    result = YOLOv8(modelPath, np_arr,  confidence_thres=0.25, iou_thres=0.4)
+    origin_box, origin_conf, origin_cls = result.main()
+    # logger.debug(origin_box)
+    # logger.debug(len(origin_cls))
+    # logger.debug(len(origin_conf))
+
+    # logger.info(f"Infer time: {time.time() - start_infer_time:.03f}s")
+
+    # cv2.resize(img, 240, interpolation=cv2.INTER_AREA)
+    # cv2.imshow('Testing', img)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     time_process = time.time()
 
@@ -117,6 +138,7 @@ async def predict(image: UploadFile = File(...), rows: bool = Form(...)):
 
             elif origin_cls_val == 2:
                 bigDict["label"] = 'DA'
+                # logger.debug(origin_box_val)
                 filtered_list = filter_list(origin_cls, origin_box, idx)
                 # logger.debug(len(filtered_list))
                 if len(filtered_list) == 43:
@@ -133,12 +155,11 @@ async def predict(image: UploadFile = File(...), rows: bool = Form(...)):
                 else:
                     col3 = 4
                     sortedList = utils.cellListV(filtered_list)
+                    # print(len(sortedList))
                 bigDict = utils.mkDict(sortedList, bigDict, col3)
                 ansDict.append(bigDict)
 
     # logger.info(len(ansDict))
-
-    listDA = []
 
     if rows:
         listDA = utils.sortAns(ansDict)

@@ -1,7 +1,45 @@
-import loguru
 from statistics import mean
 import numpy as np
 
+
+# def non_maximum_suppression(boxes, scores, iou_threshold):
+#     # Ensure boxes and scores are numpy arrays
+#     boxes = np.array(boxes)
+#     scores = np.array(scores)
+#     # Initialize a list to hold the indices of the final boxes
+#     keep_indices = []
+#     # Sort the boxes based on the scores in descending order
+#     sorted_indices = np.argsort(scores)[::-1]
+#     while len(sorted_indices) > 0:
+#         # Pick the box with the highest score
+#         current_index = sorted_indices[0]
+#         keep_indices.append(current_index)
+#         # Compute the IoU (Intersection over Union) of the picked box with the rest
+#         current_box = boxes[current_index]
+#         rest_boxes = boxes[sorted_indices[1:]]
+#         iou = compute_iou(current_box, rest_boxes)
+#         # Keep only boxes with IoU less than the threshold
+#         filtered_indices = np.where(iou < iou_threshold)[0]
+#         sorted_indices = sorted_indices[filtered_indices + 1]
+#     return keep_indices
+#
+#
+# def compute_iou(box, boxes):
+#     # Calculate the coordinates of the intersection box
+#     x1 = np.maximum(box[0], boxes[:, 0])
+#     y1 = np.maximum(box[1], boxes[:, 1])
+#     x2 = np.minimum(box[2], boxes[:, 2])
+#     y2 = np.minimum(box[3], boxes[:, 3])
+#     # Calculate the area of intersection
+#     intersection_area = np.maximum(0, x2 - x1 + 1) * np.maximum(0, y2 - y1 + 1)
+#     # Calculate the area of the boxes
+#     box_area = (box[2] - box[0] + 1) * (box[3] - box[1] + 1)
+#     boxes_area = (boxes[:, 2] - boxes[:, 0] + 1) * (boxes[:, 3] - boxes[:, 1] + 1)
+#     # Calculate the union area
+#     union_area = box_area + boxes_area - intersection_area
+#     # Calculate IoU
+#     iou = intersection_area / union_area
+#     return iou
 
 
 def cellListH(filtered_list):
