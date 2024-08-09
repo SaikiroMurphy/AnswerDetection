@@ -180,4 +180,4 @@ async def predict(image: UploadFile = File(...), rows: bool = Form(...)):
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    uvicorn.run("main:app", host="0.0.0.0", port=6969, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=6969, reload=False)
