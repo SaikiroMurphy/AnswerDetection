@@ -188,10 +188,10 @@ class YOLOv8:
                 right = int((x + w / 2) * x_factor)
                 bottom = int((y + h / 2) * y_factor)
 
-                x1 = left / self.img_width
-                y1 = top / self.img_height
-                x2 = right / self.img_width
-                y2 = bottom / self.img_height
+                x1 = (x - w/2) / 640.0
+                y1 = (y - h/2) / 640.0
+                x2 = (x + w/2) / 640.0
+                y2 = (y + h/2) / 640.0
 
                 # Add the class ID, score, and box coordinates to the respective lists
                 class_ids.append(class_id)
