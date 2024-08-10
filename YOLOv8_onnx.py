@@ -20,6 +20,7 @@ class YOLOv8:
             confidence_thres: Confidence threshold for filtering detections.
             iou_thres: IoU (Intersection over Union) threshold for non-maximum suppression.
         """
+        self.scaling_factor = None
         self.onnx_model = onnx_model
         self.input_image = input_image
         self.confidence_thres = confidence_thres
@@ -83,32 +84,15 @@ class YOLOv8:
         Returns:
             np.ndarray: Resized and padded image.
         """
-        target_width, target_height = target_size
 
-        # Calculate the scaling factor to maintain aspect ratio
-        scaling_factor = min(target_width / self.img_width, target_height / self.img_height)
+        length = max((self.img_height, self.img_width))
 
-        # Resize the image
-        resized_width = int(self.img_width * scaling_factor)
-        resized_height = int(self.img_height * scaling_factor)
-        # print(self.img)
-        resized_image = cv2.resize(self.img, (resized_width, resized_height))
-        # print(resized_image.shape)
-        # Calculate padding to center the resized image
-        pad_top = (target_height - resized_height) // 2
-        pad_bottom = target_height - resized_height - pad_top
-        pad_left = (target_width - resized_width) // 2
-        pad_right = target_width - resized_width - pad_left
+        image = np.zeros((length, length, 3), np.uint8)
+        image[0:self.img_height, 0:self.img_width] = self.input_image
 
-        # Pad the resized image to make it exactly target_size
-        padded_image = cv2.copyMakeBorder(
-            resized_image,
-            pad_top, pad_bottom, pad_left, pad_right,
-            borderType=cv2.BORDER_CONSTANT,
-            value=[0, 0, 0]  # Padding color (black)
-        )
+        self.scaling_factor = length / target_size[0]
 
-        return padded_image
+        return image
 
     def preprocess(self, target_size):
         """
@@ -118,14 +102,14 @@ class YOLOv8:
             image_data: Preprocessed image data ready for inference.
         """
         # Read the input image using OpenCV
-        self.img = cv2.imdecode(self.input_image, cv2.IMREAD_UNCHANGED)
+        self.input_image = cv2.imdecode(self.input_image, cv2.IMREAD_UNCHANGED)
 
-        self.img_height, self.img_width = self.img.shape[:2]
+        [self.img_height, self.img_width, _] = self.input_image.shape
 
         # print(self.img.shape)
         # exit(0)
 
-        padded_image = self.resize_and_pad_image(target_size=target_size)
+        padded_image = self.resize_and_pad_image(target_size)
 
         # print(padded_image.shape)
         blob = cv2.dnn.blobFromImage(padded_image, scalefactor=1 / 255.0, size=target_size, swapRB=True, crop=False)
@@ -181,17 +165,17 @@ class YOLOv8:
                 x, y, w, h = outputs[i][0], outputs[i][1], outputs[i][2], outputs[i][3]
 
                 # Calculate the scaled coordinates of the bounding box
-                left = int((x - w / 2) * x_factor)
-                top = int((y - h / 2) * y_factor)
-                width = int(w * x_factor)
-                height = int(h * y_factor)
-                right = int((x + w / 2) * x_factor)
-                bottom = int((y + h / 2) * y_factor)
+                left = int((x - w / 2))
+                top = int((y - h / 2))
+                width = int(w)
+                height = int(h)
+                right = int((x + w / 2))
+                bottom = int((y + h / 2))
 
-                x1 = (x - w/2) / 640.0
-                y1 = (y - h/2) / 640.0
-                x2 = (x + w/2) / 640.0
-                y2 = (y + h/2) / 640.0
+                x1 = left * self.scaling_factor / self.img_width
+                y1 = top * self.scaling_factor / self.img_height
+                x2 = right * self.scaling_factor / self.img_width
+                y2 = bottom * self.scaling_factor / self.img_height
 
                 # Add the class ID, score, and box coordinates to the respective lists
                 class_ids.append(class_id)
