@@ -2,48 +2,7 @@ from statistics import mean
 import numpy as np
 
 
-# def non_maximum_suppression(boxes, scores, iou_threshold):
-#     # Ensure boxes and scores are numpy arrays
-#     boxes = np.array(boxes)
-#     scores = np.array(scores)
-#     # Initialize a list to hold the indices of the final boxes
-#     keep_indices = []
-#     # Sort the boxes based on the scores in descending order
-#     sorted_indices = np.argsort(scores)[::-1]
-#     while len(sorted_indices) > 0:
-#         # Pick the box with the highest score
-#         current_index = sorted_indices[0]
-#         keep_indices.append(current_index)
-#         # Compute the IoU (Intersection over Union) of the picked box with the rest
-#         current_box = boxes[current_index]
-#         rest_boxes = boxes[sorted_indices[1:]]
-#         iou = compute_iou(current_box, rest_boxes)
-#         # Keep only boxes with IoU less than the threshold
-#         filtered_indices = np.where(iou < iou_threshold)[0]
-#         sorted_indices = sorted_indices[filtered_indices + 1]
-#     return keep_indices
-#
-#
-# def compute_iou(box, boxes):
-#     # Calculate the coordinates of the intersection box
-#     x1 = np.maximum(box[0], boxes[:, 0])
-#     y1 = np.maximum(box[1], boxes[:, 1])
-#     x2 = np.minimum(box[2], boxes[:, 2])
-#     y2 = np.minimum(box[3], boxes[:, 3])
-#     # Calculate the area of intersection
-#     intersection_area = np.maximum(0, x2 - x1 + 1) * np.maximum(0, y2 - y1 + 1)
-#     # Calculate the area of the boxes
-#     box_area = (box[2] - box[0] + 1) * (box[3] - box[1] + 1)
-#     boxes_area = (boxes[:, 2] - boxes[:, 0] + 1) * (boxes[:, 3] - boxes[:, 1] + 1)
-#     # Calculate the union area
-#     union_area = box_area + boxes_area - intersection_area
-#     # Calculate IoU
-#     iou = intersection_area / union_area
-#     return iou
-
-
 def cellListH(filtered_list):
-
     filtered_list.sort(key=lambda x: x[1][0])
     # loguru.logger.debug(len(filtered_list))
 
@@ -56,26 +15,21 @@ def cellListH(filtered_list):
         if xComp[1][0] < item_mean_x < xComp[1][2]:
             colList.append(item)
         else:
-            # loguru.logger.debug(sortedList)
             sortedList.append(colList.copy())
-            # loguru.logger.debug(sortedList)
 
             colList.clear()
             colList.append(item)
             xComp = item
 
     sortedList.append(colList.copy())
-    # loguru.logger.debug(len(sortedList))
 
     for c in sortedList:
         c.sort(key=lambda x: x[1][1])
-    # loguru.logger.debug(sortedList)
 
     return sortedList
 
 
 def cellListV(filtered_list):
-
     filtered_list.sort(key=lambda x: x[1][1])
 
     sortedList = []
@@ -93,10 +47,8 @@ def cellListV(filtered_list):
             xComp = item
 
     sortedList.append(rowList.copy())
-    # loguru.logger.debug(sortedList)
 
     for r in sortedList:
-        # loguru.logger.info(r)
         r.sort(key=lambda x: x[1][0])
 
     return sortedList
@@ -119,8 +71,7 @@ def mkDict(sortedList, bigDict, col):
     ]
 
     arr = np.array(innerDict)
-    # loguru.logger.info(len(arr))
-    reshape = arr.reshape(round(len(arr)/col), col)
+    reshape = arr.reshape(round(len(arr) / col), col)
 
     bigDict["line"].extend(reshape.tolist())
     return bigDict
@@ -152,11 +103,12 @@ def sortAns(ansDict):
         row.sort(key=lambda x: x["box"][1])
         # loguru.logger.debug(row)
 
-
     # Flatten the sorted list
     listDA = [item for sublist in sortedList for item in sublist]
 
     return listDA
+
+
 def sortAnsD(ansDict):
     # Filter out items with label "DA" and sort by the 2nd value in the "box" list
     listDA = sorted((item for item in ansDict if item["label"] == "DA"), key=lambda x: x["box"][1])
@@ -182,7 +134,6 @@ def sortAnsD(ansDict):
         # loguru.logger.debug(row)
         row.sort(key=lambda x: x["box"][0])
         # loguru.logger.debug(row)
-
 
     # Flatten the sorted list
     listDA = [item for sublist in sortedList for item in sublist]

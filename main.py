@@ -1,7 +1,5 @@
 import os, sys
 
-import cv2
-
 import utils
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form
@@ -15,7 +13,6 @@ import uuid
 from statistics import mean
 import numpy as np
 from YOLOv8_onnx import YOLOv8
-
 
 app = FastAPI()
 
@@ -35,6 +32,7 @@ def resource_path(relative_path):
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
+
 OUTPUT_PATH = Path(__file__).parent
 ASSETS_PATH = OUTPUT_PATH / Path("./")
 
@@ -53,6 +51,7 @@ def filter_list(origin_cls, origin_box, idx):
 
 modelPath = relative_to_assets("Yolov8s-p2.onnx")
 
+
 # model = YOLO(modelPath, task='detect')
 
 
@@ -65,38 +64,14 @@ async def predict(image: UploadFile = File(...), rows: bool = Form(...)):
     np_arr = np.frombuffer(contents, np.uint8)
 
     start_infer_time = time.time()
-    # results = model.predict(cv2.imdecode(np_arr, cv2.IMREAD_COLOR),
-    #                         save=True,
-    #                         show_labels=False,
-    #                         imgsz=640,
-    #                         max_det=800,
-    #                         conf=0.25,
-    #                         iou=0.4,
-    #                         agnostic_nms=True,
-    #                         )
 
-    # exit(0)
-
-    result = YOLOv8(modelPath, np_arr,  confidence_thres=0.25, iou_thres=0.4)
+    result = YOLOv8(modelPath, np_arr, confidence_thres=0.25, iou_thres=0.4)
     origin_box, origin_conf, origin_cls = result.main()
-    # logger.debug(origin_box)
-    # logger.debug(len(origin_cls))
-    # logger.debug(len(origin_conf))
-
-    # logger.info(f"Infer time: {time.time() - start_infer_time:.03f}s")
-
-    # cv2.resize(img, 240, interpolation=cv2.INTER_AREA)
-    # cv2.imshow('Testing', img)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
 
     time_process = time.time()
 
     jsonDict = []
     ansDict = []
-
-    # box = utils.remove_duplicate_boxes(origin_box)
-    # print(box)
 
     elimSBD = 0
     elimMDT = 0
@@ -138,24 +113,20 @@ async def predict(image: UploadFile = File(...), rows: bool = Form(...)):
 
             elif origin_cls_val == 2:
                 bigDict["label"] = 'DA'
-                # logger.debug(origin_box_val)
                 filtered_list = filter_list(origin_cls, origin_box, idx)
-                # logger.debug(len(filtered_list))
                 if len(filtered_list) == 43:
                     col3 = 11
                     sortedList = utils.cellListH(filtered_list)
-                    # logger.debug(sortedList)
                     sortedList[-1].insert(0, [4, np.array([0, 0, 0, 0], dtype='float32')])
 
                 elif len(filtered_list) == 8:
                     col3 = 2
                     sortedList = utils.cellListV(filtered_list)
-                    # logger.debug(sortedList)
 
                 else:
                     col3 = 4
                     sortedList = utils.cellListV(filtered_list)
-                    # print(len(sortedList))
+
                 bigDict = utils.mkDict(sortedList, bigDict, col3)
                 ansDict.append(bigDict)
 
@@ -166,7 +137,6 @@ async def predict(image: UploadFile = File(...), rows: bool = Form(...)):
     else:
         listDA = utils.sortAnsD(ansDict)
 
-    # logger.debug(listDA)
     for i in listDA:
         jsonDict.append(i)
 
