@@ -1,17 +1,20 @@
-import os, sys
-
-import utils
+import logging
+import multiprocessing
+import os
+import sys
+import time
+import uuid
 from pathlib import Path
+from statistics import mean
+
+import numpy as np
+import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
-import uvicorn
-import multiprocessing
-import time
-from loguru import logger
+# from loguru import logger
 from starlette.requests import Request
-import uuid
-from statistics import mean
-import numpy as np
+
+import utils
 from YOLOv8_onnx import YOLOv8
 
 app = FastAPI()
@@ -142,12 +145,22 @@ async def predict(image: UploadFile = File(...), rows: bool = Form(...)):
 
     sheetDict = {"sheet": jsonDict}
 
-    logger.info(f"Post processing time: {time.time() - time_process:.03f}s")
-    logger.info(f"Total processing time: {time.time() - start_infer_time:.03f}s")
+    # logger.info(f"Post processing time: {time.time() - time_process:.03f}s")
+    # logger.info(f"Total processing time: {time.time() - start_infer_time:.03f}s")
 
     return JSONResponse(content=sheetDict, status_code=200)
 
 
+def is_running_in_console():
+    return sys.stdout is not None and sys.stdout.isatty()
+
+
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    uvicorn.run(app, host="0.0.0.0", port=6969, reload=False)
+    config = uvicorn.Config(app, log_config=None, host="0.0.0.0", port=6969, reload=False)
+    if is_running_in_console():
+        logging.basicConfig(level=logging.INFO)
+    else:
+        logging.basicConfig(filename='app.log', level=logging.INFO)
+    server = uvicorn.Server(config)
+    server.run()

@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 import time
-from loguru import logger
+# from loguru import logger
 
 
 class YOLOv8:
@@ -135,14 +135,14 @@ class YOLOv8:
         # Preprocess the image data
         img_data = self.preprocess((640, 640))
 
-        logger.info(f"Preprocess time: {time.time() - preprocess_time:.03f}s")
+        # logger.info(f"Preprocess time: {time.time() - preprocess_time:.03f}s")
 
         # Run inference using the preprocessed image data
         start_infer_time = time.time()
 
         outputs = self.session.run(None, {self.session.get_inputs()[0].name: img_data})
 
-        logger.info(f"Infer time: {time.time() - start_infer_time:.03f}s")
+        # logger.info(f"Infer time: {time.time() - start_infer_time:.03f}s")
 
         # Perform post-processing on the outputs to obtain output image.
         return self.postprocess(outputs)  # output image

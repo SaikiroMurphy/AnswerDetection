@@ -6,10 +6,10 @@ import requests
 HOST = '127.0.0.1'
 PORT = '6969'
 
-image_path = r"C:\Users\ASUS\Downloads\ANH QUET BAI THIv6\ANH QUET BAI THI"
+# image_path = r"C:\Users\ASUS\Downloads\ANH QUET BAI THIv6\ANH QUET BAI THI"
 
 
-# image_path = r"E:\OneDrive - bkacad.edu.vn\Documents\PhieuTN\exam\images\val"
+image_path = r"E:\OneDrive - bkacad.edu.vn\Documents\PhieuTN\exam\images\val_temp"
 
 
 def htmlTableAPI(image_path):
