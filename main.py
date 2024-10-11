@@ -16,6 +16,10 @@ from starlette.requests import Request
 
 import utils
 from YOLOv8_onnx import YOLOv8
+import warnings
+
+# Suppress all UserWarnings
+warnings.simplefilter("ignore", category=UserWarning)
 
 app = FastAPI()
 
@@ -65,13 +69,14 @@ async def predict(image: UploadFile = File(...), rows: bool = Form(...)):
 
     # Convert the file contents to a numpy array
     np_arr = np.frombuffer(contents, np.uint8)
+    # print(np_arr.shape)
 
-    start_infer_time = time.time()
+    # start_infer_time = time.time()
 
     result = YOLOv8(modelPath, np_arr, confidence_thres=0.25, iou_thres=0.4)
     origin_box, origin_conf, origin_cls = result.main()
 
-    time_process = time.time()
+    # time_process = time.time()
 
     jsonDict = []
     ansDict = []
@@ -159,8 +164,8 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     config = uvicorn.Config(app, log_config=None, host="0.0.0.0", port=6969, reload=False)
     if is_running_in_console():
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.ERROR)
     else:
-        logging.basicConfig(filename='app.log', level=logging.INFO)
+        logging.basicConfig(filename='app.log', level=logging.ERROR)
     server = uvicorn.Server(config)
     server.run()

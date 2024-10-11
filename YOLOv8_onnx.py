@@ -3,14 +3,16 @@
 import cv2
 import numpy as np
 import onnxruntime as ort
-import time
+
+
+# import time
 # from loguru import logger
 
 
 class YOLOv8:
     """YOLOv8 object detection model class for handling inference and visualization."""
 
-    def __init__(self, onnx_model, input_image, confidence_thres, iou_thres):
+    def __init__(self, onnx_model, input_image, confidence_thres=0.25, iou_thres=0.4):
         """
         Initializes an instance of the YOLOv8 class.
 
@@ -36,34 +38,56 @@ class YOLOv8:
         # Load the class names from the COCO dataset
         self.classes = ['SBD', 'MDT', 'DA', 'O', 'X']
 
-    def preprocess(self, target_size):
+    def preprocess(self):
         """
         Preprocesses the input image before performing inference.
 
         Returns:
             image_data: Preprocessed image data ready for inference.
         """
+
         # Decode the image
         self.input_image = cv2.imdecode(self.input_image, cv2.IMREAD_UNCHANGED)
+        # self.input_image = cv2.cvtColor(self.input_image, cv2.COLOR_BGR2RGB)
         self.img_height, self.img_width = self.input_image.shape[:2]
 
+        # cv2.imshow('input_image', self.input_image)
+        # cv2.waitKey(0)
+
         # Calculate the scaling factor for resizing
-        scaling_factor = min(target_size[0] / self.img_height, target_size[1] / self.img_width)
+        scaling_factor = min(self.input_height / self.img_height, self.input_width / self.img_width)
 
         # Resize the image with padding (if needed)
         resized_image = cv2.resize(self.input_image, (0, 0), fx=scaling_factor, fy=scaling_factor)
+        # print(resized_image)
+        # cv2.imshow('resized_image', resized_image)
+        # cv2.waitKey(0)
+
+        # resized_image = resized_image.astype(np.float32)
+        # cv2.imshow('YOLOv8', resized_image)
+        # cv2.waitKey(0)
+
         padded_image = cv2.copyMakeBorder(
             resized_image,
-            0,
-            target_size[1] - resized_image.shape[0],
-            0,
-            target_size[0] - resized_image.shape[1],
+            0 + (self.input_width - resized_image.shape[0]) // 2,
+            (self.input_width - resized_image.shape[0]) // 2,
+            0 + (self.input_height - resized_image.shape[1]) // 2,
+            (self.input_height - resized_image.shape[1]) // 2,
             cv2.BORDER_CONSTANT,
             value=[0, 0, 0]
         )
 
+        # cv2.imshow('padded_image', padded_image)
+        # cv2.waitKey(0)
+
         # Convert to blob format
-        blob = cv2.dnn.blobFromImage(padded_image, scalefactor=1 / 255.0, size=target_size, swapRB=True, crop=False)
+        blob = cv2.dnn.blobFromImage(padded_image, scalefactor=1 / 255.0, size=(self.input_width, self.input_height),
+                                     crop=False, swapRB=True)
+        # blob_test = (blob[0].transpose((1, 2, 0)) * 255).astype(np.uint8)
+        # print(blob.shape)
+
+        # cv2.imshow('blob', blob_test)
+        # cv2.waitKey(0)
 
         # Update scaling factor in the object
         self.scaling_factor = 1 / scaling_factor
@@ -130,15 +154,15 @@ class YOLOv8:
             output_img: The output image with drawn detections.
         """
 
-        preprocess_time = time.time()
+        # preprocess_time = time.time()
 
         # Preprocess the image data
-        img_data = self.preprocess((640, 640))
+        img_data = self.preprocess()
 
         # logger.info(f"Preprocess time: {time.time() - preprocess_time:.03f}s")
 
         # Run inference using the preprocessed image data
-        start_infer_time = time.time()
+        # start_infer_time = time.time()
 
         outputs = self.session.run(None, {self.session.get_inputs()[0].name: img_data})
 
