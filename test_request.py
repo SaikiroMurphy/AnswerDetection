@@ -9,7 +9,7 @@ PORT = '6969'
 # image_path = r"C:\Users\ASUS\Downloads\ANH QUET BAI THIv6\ANH QUET BAI THI"
 
 
-image_path = r"E:\OneDrive - bkacad.edu.vn\Documents\PhieuTN\exam\images\val_temp"
+image_path = r"E:\TelegramDesktop\Downloads\ANH_QUET_BAI_THI"
 
 
 def htmlTableAPI(image_path):
